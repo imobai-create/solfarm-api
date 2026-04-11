@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================
+// USUÁRIOS / PRODUTORES
+// ========================
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Dados pessoais
+  name     String
+  email    String  @unique
+  phone    String?
+  password String
+  cpfCnpj  String? @unique @map("cpf_cnpj")
+  avatar   String?
+
+  // Perfil do produtor
+  role      UserRole  @default(PRODUCER)
+  plan      UserPlan  @default(FREE)
+  planExpiresAt DateTime? @map("plan_expires_at")
+  isActive  Boolean   @default(true) @map("is_active")
+  isVerified Boolean  @default(false) @map("is_verified")
+
+  // Localização principal
+  state    String?
+  city     String?
+  region   String? // ex: "Cerrado", "Amazônia", "Pampa"
+
+  // Relacionamentos
+  areas       Area[]
+  diagnostics Diagnostic[]
+  orders      Order[]
+  posts       Post[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  PRODUCER   // Produtor rural
+  SUPPLIER   // Fornecedor de insumos/máquinas
+  AGRONOMIST // Agrônomo parceiro
+  ADMIN      // Admin da plataforma
+}
+
+enum UserPlan {
+  FREE     // 1 área, diagnóstico básico
+  CAMPO    // até 5 áreas, diagnóstico completo
+  FAZENDA  // ilimitado, IA avançada
+}
+
+// ========================
+// ÁREAS RURAIS
+// ========================
+model Area {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Dados da área
+  name        String
+  description String?
+  hectares    Float         // calculado automaticamente via PostGIS
+  culture     CultureType?  // cultura atual plantada
+  soilType    String?       @map("soil_type") // tipo de solo (se informado)
+
+  // Geoespacial — polígono da área (GeoJSON/PostGIS)
+  // Armazenamos como texto GeoJSON e usamos queries raw para PostGIS
+  polygon     String        @db.Text // GeoJSON Polygon string
+  centroidLat Float?        @map("centroid_lat")
+  centroidLng Float?        @map("centroid_lng")
+  bbox        String?       @db.Text // bounding box para queries de satélite
+
+  // Localização
+  state       String?
+  city        String?
+  biome       BiomeType?
+
+  // Status
+  isActive    Boolean @default(true) @map("is_active")
+
+  // Relacionamentos
+  userId      String      @map("user_id") @db.Uuid
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diagnostics Diagnostic[]
+  satelliteImages SatelliteImage[]
+
+  @@map("areas")
+}
+
+enum CultureType {
+  SOJA        // Soja
+  MILHO       // Milho
+  CAFE        // Café
+  CANA        // Cana-de-açúcar
+  ALGODAO     // Algodão
+  ARROZ       // Arroz
+  FEIJAO      // Feijão
+  TRIGO       // Trigo
+  MANDIOCA    // Mandioca
+  EUCALIPTO   // Eucalipto
+  PASTAGEM    // Pastagem/Pecuária
+  HORTIFRUTI  // Hortifrutigranjeiros
+  FRUTAS      // Fruticultura
+  OUTRO       // Outro
+  VAZIO       // Área sem cultivo
+}
+
+enum BiomeType {
+  CERRADO
+  AMAZONIA
+  MATA_ATLANTICA
+  CAATINGA
+  PAMPA
+  PANTANAL
+}
+
+// ========================
+// IMAGENS DE SATÉLITE
+// ========================
+model SatelliteImage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Metadados da imagem
+  acquisitionDate DateTime  @map("acquisition_date")  // data de captura do satélite
+  satellite       String    // ex: "Sentinel-2", "Landsat-8"
+  cloudCover      Float     @map("cloud_cover")       // % cobertura de nuvens (0-100)
+  resolution      Float     // resolução em metros (ex: 10)
+
+  // Índices calculados para toda a área (média)
+  ndviMean   Float?  @map("ndvi_mean")   // Vegetation Index (-1 a 1)
+  ndviMin    Float?  @map("ndvi_min")
+  ndviMax    Float?  @map("ndvi_max")
+  ndreMean   Float?  @map("ndre_mean")   // Red-Edge (nitrogênio)
+  ndwiMean   Float?  @map("ndwi_mean")   // Water Index (umidade)
+  eviMean    Float?  @map("evi_mean")    // Enhanced Vegetation Index
+
+  // Mapa de zonas (JSON com NDVI por zona da área)
+  zonesMap   String? @db.Text @map("zones_map") // JSON com grid de valores
+
+  // URLs das bandas
+  stacItemId String? @map("stac_item_id")  // ID no STAC catalog
+  thumbnailUrl String? @map("thumbnail_url")
+  trueColorUrl String? @map("true_color_url")
+  ndviColorUrl String? @map("ndvi_color_url")
+
+  // Status
+  status      ImageStatus @default(PROCESSING)
+
+  // Relacionamentos
+  areaId      String     @map("area_id") @db.Uuid
+  area        Area       @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  diagnostic  Diagnostic?
+
+  @@map("satellite_images")
+}
+
+enum ImageStatus {
+  PROCESSING  // processando
+  READY       // pronta
+  ERROR       // erro no processamento
+  NO_DATA     // sem imagem disponível para o período
+}
+
+// ========================
+// DIAGNÓSTICOS
+// ========================
+model Diagnostic {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Classificação geral da área (1-10)
+  score          Float
+  healthStatus   HealthStatus @map("health_status")
+
+  // Problemas identificados (JSON array)
+  problems       String @db.Text // JSON: [{type, severity, description, zone}]
+
+  // Recomendações
+  recommendations String @db.Text // JSON: [{category, priority, action, product?}]
+
+  // Cultura recomendada para próxima safra
+  recommendedCultures String? @db.Text @map("recommended_cultures") // JSON array
+
+  // Plano de fertilização por zona (VRA - Variable Rate Application)
+  fertilizationPlan String? @db.Text @map("fertilization_plan") // JSON
+
+  // Estimativa de produtividade
+  yieldEstimate   Float? @map("yield_estimate")      // ton/ha estimado
+  yieldUnit       String? @default("ton/ha") @map("yield_unit")
+
+  // Dados climáticos no momento do diagnóstico
+  precipitation   Float?  // mm/mês
+  temperature     Float?  // °C média
+  droughtRisk     String? @map("drought_risk") // baixo/médio/alto
+
+  // Relacionamentos
+  areaId          String  @map("area_id") @db.Uuid
+  area            Area    @relation(fields: [areaId], references: [id])
+  userId          String  @map("user_id") @db.Uuid
+  user            User    @relation(fields: [userId], references: [id])
+  satelliteImageId String? @unique @map("satellite_image_id") @db.Uuid
+  satelliteImage  SatelliteImage? @relation(fields: [satelliteImageId], references: [id])
+
+  @@map("diagnostics")
+}
+
+enum HealthStatus {
+  EXCELENTE   // NDVI > 0.7, sem problemas
+  BOM         // NDVI 0.5-0.7, poucos problemas
+  REGULAR     // NDVI 0.3-0.5, atenção necessária
+  CRITICO     // NDVI 0.1-0.3, intervenção urgente
+  MUITO_RUIM  // NDVI < 0.1, área em risco severo
+}
+
+// ========================
+// MARKETPLACE — PRODUTOS
+// ========================
+model Product {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  name        String
+  description String?  @db.Text
+  category    ProductCategory
+  price       Float
+  unit        String           // kg, L, saco 50kg, unidade, etc.
+  stock       Int              @default(0)
+  images      String[]         // array de URLs
+  brand       String?
+  sku         String?          @unique
+
+  // Localização do fornecedor
+  state       String?
+  city        String?
+
+  // Status
+  isActive    Boolean @default(true) @map("is_active")
+  isFeatured  Boolean @default(false) @map("is_featured")
+
+  // Relacionamentos
+  supplierId  String   @map("supplier_id") @db.Uuid
+  orderItems  OrderItem[]
+
+  @@map("products")
+}
+
+enum ProductCategory {
+  FERTILIZANTE
+  DEFENSIVO
+  SEMENTE
+  INOCULANTE
+  MAQUINA
+  IMPLEMENTO
+  FERRAMENTA
+  IRRIGACAO
+  SERVICO
+  OUTRO
+}
+
+// ========================
+// MARKETPLACE — PEDIDOS
+// ========================
+model Order {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  total       Float
+  status      OrderStatus @default(PENDING)
+  paymentMethod String?  @map("payment_method")
+
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quantity  Int
+  price     Float   // preço no momento da compra
+
+  orderId   String  @map("order_id") @db.Uuid
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String  @map("product_id") @db.Uuid
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// ========================
+// COMUNIDADE — POSTS
+// ========================
+model Post {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  title     String?
+  content   String  @db.Text
+  images    String[]
+  category  PostCategory @default(GERAL)
+  likes     Int          @default(0)
+
+  // Localização para filtro regional
+  state     String?
+  city      String?
+
+  userId    String @map("user_id") @db.Uuid
+  user      User   @relation(fields: [userId], references: [id])
+
+  @@map("posts")
+}
+
+enum PostCategory {
+  GERAL
+  DUVIDA
+  DICA
+  ALERTA       // alerta de praga, clima, etc
+  RESULTADO    // resultado de produção
+  VENDA        // oferta de produto/serviço
+}
+
+// ========================
+// AUTH — REFRESH TOKENS
+// ========================
+model RefreshToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+
+  userId    String @map("user_id") @db.Uuid
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}

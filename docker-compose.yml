@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: hubfarm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hubfarm
+      POSTGRES_PASSWORD: hubfarm123
+      POSTGRES_DB: hubfarm_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - hubfarm_postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgis.sql:/docker-entrypoint-initdb.d/init-postgis.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hubfarm -d hubfarm_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hubfarm_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - hubfarm_redis_data:/data
+
+volumes:
+  hubfarm_postgres_data:
+  hubfarm_redis_data:
