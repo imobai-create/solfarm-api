@@ -41,6 +41,7 @@ model User {
   orders      Order[]
   posts       Post[]
   refreshTokens RefreshToken[]
+  wallet      Wallet?
 
   @@map("users")
 }
@@ -341,6 +342,128 @@ enum PostCategory {
   ALERTA       // alerta de praga, clima, etc
   RESULTADO    // resultado de produção
   VENDA        // oferta de produto/serviço
+}
+
+// ========================
+// FARMCOIN — CARTEIRA
+// ========================
+model Wallet {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  balance      Float    @default(0)       // saldo disponível em FARMCOINS
+  lockedBalance Float   @default(0) @map("locked_balance") // em garantia
+  totalMinted  Float    @default(0) @map("total_minted")   // total emitido historicamente
+  totalBurned  Float    @default(0) @map("total_burned")   // total queimado
+
+  userId       String   @unique @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions TokenTransaction[]
+  requests     TokenRequest[]
+  energyCredits EnergyCredit[]
+
+  @@map("wallets")
+}
+
+model TokenTransaction {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  type        TokenTxType
+  amount      Float
+  description String
+  reference   String?      // ID de referência (área, pedido, etc)
+  status      TxStatus     @default(CONFIRMED)
+  balanceBefore Float      @map("balance_before")
+  balanceAfter  Float      @map("balance_after")
+
+  walletId    String       @map("wallet_id") @db.Uuid
+  wallet      Wallet       @relation(fields: [walletId], references: [id])
+  toWalletId  String?      @map("to_wallet_id") @db.Uuid // destino em transferências
+
+  @@map("token_transactions")
+}
+
+model TokenRequest {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  // Dados da produção declarada (lastro)
+  areaId             String        @map("area_id") @db.Uuid
+  culture            String
+  declaredProduction Float         @map("declared_production") // sacas/ton declaradas
+  productionUnit     String        @default("sacas") @map("production_unit")
+  pricePerUnit       Float         @map("price_per_unit") // R$ por saca no momento
+  totalProductionValue Float       @map("total_production_value") // valor total declarado
+  collateralRate     Float         @default(0.3) @map("collateral_rate") // % de lastro (30%)
+  requestedTokens    Float         @map("requested_tokens") // FARMCOINS solicitados
+
+  // Validação via satélite
+  ndviAtRequest      Float?        @map("ndvi_at_request")
+  ndviValidated      Boolean       @default(false) @map("ndvi_validated")
+
+  status             RequestStatus @default(PENDING)
+  approvedAt         DateTime?     @map("approved_at")
+  completedAt        DateTime?     @map("completed_at")
+  notes              String?
+
+  walletId           String        @map("wallet_id") @db.Uuid
+  wallet             Wallet        @relation(fields: [walletId], references: [id])
+
+  @@map("token_requests")
+}
+
+model EnergyCredit {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  kwh          Float        // kWh excedente declarado
+  month        String       // "2026-04" ano-mês de referência
+  source       String       @default("solar") // solar, eolica, etc
+  tokensEmitted Float       @default(0) @map("tokens_emitted")
+  status       EnergyStatus @default(PENDING)
+  verifiedAt   DateTime?    @map("verified_at")
+
+  walletId     String       @map("wallet_id") @db.Uuid
+  wallet       Wallet       @relation(fields: [walletId], references: [id])
+
+  @@map("energy_credits")
+}
+
+enum TokenTxType {
+  MINT        // emissão pela plataforma
+  BURN        // queima (resgate/vencimento)
+  TRANSFER    // transferência P2P
+  SPEND       // gasto no marketplace
+  RECEIVE     // recebimento de transferência
+  LOCK        // bloqueio como garantia
+  UNLOCK      // liberação de garantia
+  ENERGY_MINT // emissão por crédito de energia
+}
+
+enum TxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  EXPIRED
+}
+
+enum EnergyStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  CONVERTED
 }
 
 // ========================

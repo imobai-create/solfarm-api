@@ -15,6 +15,7 @@ import { paymentRoutes, paymentWebhookRoutes } from './modules/payment/payment.r
 import { scanRoutes } from './modules/scan/scan.routes'
 import { receitaRoutes } from './modules/receita/receita.routes'
 import { adminRoutes } from './modules/admin/admin.routes'
+import { farmcoinRoutes } from './modules/farmcoin/farmcoin.routes'
 
 // ─────────────────────────────────────
 // Instância do Fastify
@@ -136,6 +137,7 @@ async function registerRoutes() {
   await app.register(scanRoutes, { prefix: '/scan' })
   await app.register(receitaRoutes, { prefix: '/receita' })
   await app.register(adminRoutes, { prefix: '/admin' })
+  await app.register(farmcoinRoutes, { prefix: '/farmcoin' })
 
   // 404 handler
   app.setNotFoundHandler((request, reply) => {
