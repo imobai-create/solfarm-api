@@ -1,7 +1,11 @@
 import { Resend } from 'resend'
 import { env } from '../../config/env'
 
-const resend = new Resend(env.RESEND_API_KEY)
+// Instancia apenas quando a chave estiver disponível (lazy)
+function getResend() {
+  if (!env.RESEND_API_KEY) return null
+  return new Resend(env.RESEND_API_KEY)
+}
 
 const FROM = 'SolFarm <notificacoes@solfarm.com.br>'
 
@@ -15,7 +19,8 @@ export async function sendDiagnosticReady(params: {
   score: number
   ndvi?: number
 }) {
-  if (!env.RESEND_API_KEY) return
+  const resend = getResend()
+  if (!resend) return
 
   const { toEmail, toName, areaName, diagnosticId, healthStatus, score, ndvi } = params
 
@@ -93,7 +98,8 @@ export async function sendDiagnosticReady(params: {
 
 // ── Email: boas-vindas ────────────────────────────────────────
 export async function sendWelcome(params: { toEmail: string; toName: string }) {
-  if (!env.RESEND_API_KEY) return
+  const resend = getResend()
+  if (!resend) return
 
   await resend.emails.send({
     from: FROM,
@@ -148,7 +154,8 @@ export async function sendCriticalAlert(params: {
   score: number
   diagnosticId: string
 }) {
-  if (!env.RESEND_API_KEY) return
+  const resend = getResend()
+  if (!resend) return
 
   await resend.emails.send({
     from: FROM,
