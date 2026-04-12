@@ -21,7 +21,7 @@ const app = Fastify({
       env.NODE_ENV === 'development'
         ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
         : undefined,
-    level: env.NODE_ENV === 'production' ? 'warn' : 'info',
+    level: 'info',
   },
 })
 
@@ -37,7 +37,7 @@ async function registerPlugins() {
   // CORS
   await app.register(cors, {
     origin: env.NODE_ENV === 'production'
-      ? ['https://solfarm.com.br', 'https://app.solfarm.com.br']
+      ? ['https://solfarm.com.br', 'https://app.solfarm.com.br', 'https://solfarm-web.vercel.app', /\.vercel\.app$/]
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -150,11 +150,18 @@ async function registerRoutes() {
 // ─────────────────────────────────────
 async function bootstrap() {
   try {
+    console.log('🚀 Iniciando SolFarm API...')
+    console.log(`   NODE_ENV: ${process.env.NODE_ENV}`)
+    console.log(`   PORT: ${process.env.PORT ?? 3333}`)
+    console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? '✓ definida' : '✗ AUSENTE'}`)
+
     await registerPlugins()
     await registerDecorators()
     await registerRoutes()
 
-    await app.listen({ port: env.PORT, host: '0.0.0.0' })
+    const port = Number(process.env.PORT) || 3333
+    await app.listen({ port, host: '0.0.0.0' })
+    console.log(`✅ SolFarm API rodando na porta ${port}`)
 
     app.log.info(`
 ╔══════════════════════════════════════════════╗
