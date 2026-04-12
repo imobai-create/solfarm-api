@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database'
 import { SatelliteService } from '../satellite/satellite.service'
 import { NotFoundError, ForbiddenError, AppError } from '../../shared/errors/AppError'
+import { sendDiagnosticReady, sendCriticalAlert } from '../notifications/email.service'
 import type { HealthStatus, CultureType, BiomeType } from '@prisma/client'
 
 interface DiagnosticProblem {
@@ -162,6 +163,31 @@ export class DiagnosticService {
         yieldUnit: yieldEstimate.unit,
       },
     })
+
+    // Busca dados do usuário para notificação
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+    if (user) {
+      // Email assíncrono — não bloqueia a resposta
+      sendDiagnosticReady({
+        toEmail: user.email,
+        toName: user.name,
+        areaName: area.name,
+        diagnosticId: diagnostic.id,
+        healthStatus,
+        score: Math.round(score * 10),
+        ndvi,
+      }).catch(() => {})
+
+      if (healthStatus === 'CRITICO') {
+        sendCriticalAlert({
+          toEmail: user.email,
+          toName: user.name,
+          areaName: area.name,
+          score: Math.round(score * 10),
+          diagnosticId: diagnostic.id,
+        }).catch(() => {})
+      }
+    }
 
     return {
       id: diagnostic.id,

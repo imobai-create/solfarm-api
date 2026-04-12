@@ -6,6 +6,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/AppError'
+import { sendWelcome } from '../notifications/email.service'
 import type { RegisterInput, LoginInput } from './auth.schemas'
 import type { FastifyInstance } from 'fastify'
 
@@ -55,6 +56,9 @@ export class AuthService {
     })
 
     const { accessToken, refreshToken } = await this.generateTokens(user)
+
+    // Boas-vindas por email (assíncrono)
+    sendWelcome({ toEmail: user.email, toName: user.name }).catch(() => {})
 
     return { user, accessToken, refreshToken }
   }
