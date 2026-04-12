@@ -95,6 +95,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         select: {
           id: true, name: true, email: true, plan: true, role: true,
           createdAt: true, city: true, state: true, phone: true,
+          isVerified: true,
           _count: { select: { areas: true, diagnostics: true } },
         },
       }),
@@ -102,5 +103,85 @@ export async function adminRoutes(fastify: FastifyInstance) {
     ])
 
     return reply.send({ users, total, page: Number(page), limit: Number(limit) })
+  })
+
+  // PATCH /admin/users/:id/plan — altera plano do usuário
+  fastify.patch('/users/:id/plan', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { plan } = request.body as { plan: 'FREE' | 'CAMPO' | 'FAZENDA' }
+
+    if (!['FREE', 'CAMPO', 'FAZENDA'].includes(plan)) {
+      return reply.status(400).send({ error: 'Plano inválido. Use FREE, CAMPO ou FAZENDA.' })
+    }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { plan },
+      select: { id: true, name: true, email: true, plan: true },
+    })
+
+    return reply.send({ user })
+  })
+
+  // PATCH /admin/users/:id/block — bloqueia/desbloqueia usuário (isVerified false = bloqueado)
+  fastify.patch('/users/:id/block', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { blocked } = request.body as { blocked: boolean }
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isVerified: !blocked },
+      select: { id: true, name: true, email: true, isVerified: true },
+    })
+
+    return reply.send({ user, blocked: !user.isVerified })
+  })
+
+  // GET /admin/farmcoin — lista últimas 50 transações de token
+  fastify.get('/farmcoin', async (_request, reply) => {
+    const transactions = await prisma.tokenTransaction.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        wallet: {
+          select: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    })
+
+    return reply.send({
+      transactions: transactions.map(tx => ({
+        id: tx.id,
+        type: tx.type,
+        amount: tx.amount,
+        description: tx.description,
+        reference: tx.reference,
+        status: tx.status,
+        balanceBefore: tx.balanceBefore,
+        balanceAfter: tx.balanceAfter,
+        createdAt: tx.createdAt,
+        user: tx.wallet?.user ?? null,
+      })),
+    })
+  })
+
+  // GET /admin/payments — lista últimos 50 pedidos (tabela orders)
+  fastify.get('/payments', async (_request, reply) => {
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        items: {
+          include: {
+            product: { select: { name: true, category: true } },
+          },
+        },
+      },
+    })
+
+    return reply.send({ orders })
   })
 }
