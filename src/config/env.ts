@@ -16,6 +16,7 @@ const envSchema = z.object({
   COPERNICUS_CLIENT_ID: z.string().optional(),
   COPERNICUS_CLIENT_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
 
   // Asaas — Pagamentos
   ASAAS_API_KEY: z.string().optional(),
