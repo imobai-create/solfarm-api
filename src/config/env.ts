@@ -17,6 +17,11 @@ const envSchema = z.object({
   COPERNICUS_CLIENT_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
 
+  // Asaas — Pagamentos
+  ASAAS_API_KEY: z.string().optional(),
+  ASAAS_SANDBOX: z.string().default('false'),
+  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
+
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   RATE_LIMIT_WINDOW: z.coerce.number().default(60000),
 })
