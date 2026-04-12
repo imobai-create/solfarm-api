@@ -22,7 +22,7 @@ const envSchema = z.object({
   PLATFORM_PRIVATE_KEY: z.string().optional(),
   TREASURY_WALLET: z.string().optional(),
   FARMCOIN_CONTRACT_ADDRESS: z.string().optional(),
-  POLYGON_RPC_URL: z.string().default('https://polygon-rpc.com'),
+  POLYGON_RPC_URL: z.string().default('https://polygon-bor-rpc.publicnode.com'),
 
   // Asaas — Pagamentos
   ASAAS_API_KEY: z.string().optional(),

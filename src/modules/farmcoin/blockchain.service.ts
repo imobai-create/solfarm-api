@@ -3,7 +3,7 @@ import { env } from '../../config/env'
 import farmcoinAbi from './FarmCoin.abi.json'
 
 // ── Configuração da rede Polygon ──────────────────────────────
-const POLYGON_RPC = env.POLYGON_RPC_URL ?? 'https://polygon-rpc.com'
+const POLYGON_RPC = env.POLYGON_RPC_URL ?? 'https://polygon-bor-rpc.publicnode.com'
 const PLATFORM_KEY = env.PLATFORM_PRIVATE_KEY
 const CONTRACT_ADDRESS = env.FARMCOIN_CONTRACT_ADDRESS
 
