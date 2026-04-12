@@ -14,6 +14,7 @@ import { diagnosticRoutes } from './modules/diagnostic/diagnostic.routes'
 import { paymentRoutes, paymentWebhookRoutes } from './modules/payment/payment.routes'
 import { scanRoutes } from './modules/scan/scan.routes'
 import { receitaRoutes } from './modules/receita/receita.routes'
+import { adminRoutes } from './modules/admin/admin.routes'
 
 // ─────────────────────────────────────
 // Instância do Fastify
@@ -134,6 +135,7 @@ async function registerRoutes() {
   await app.register(paymentWebhookRoutes, { prefix: '/' })
   await app.register(scanRoutes, { prefix: '/scan' })
   await app.register(receitaRoutes, { prefix: '/receita' })
+  await app.register(adminRoutes, { prefix: '/admin' })
 
   // 404 handler
   app.setNotFoundHandler((request, reply) => {
