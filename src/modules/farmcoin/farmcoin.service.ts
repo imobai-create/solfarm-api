@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database'
+import { mintOnChain, isBlockchainEnabled } from './blockchain.service'
 
 // Preço de referência por saca (em R$) — pode vir de API de cotação no futuro
 const PRICE_PER_SACA: Record<string, number> = {
@@ -112,18 +113,38 @@ export async function requestTokenEmission(userId: string, params: {
     },
   })
 
-  // Se aprovado automaticamente, emite tokens
+  let txHash: string | undefined
+  let userTokensOnChain = requestedTokens
+
+  // Se aprovado, emite tokens
   if (req.status === 'APPROVED') {
+    // Tenta mint on-chain primeiro se blockchain estiver configurada
+    if (isBlockchainEnabled()) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletAddress: true } })
+      if (user?.walletAddress) {
+        const onchain = await mintOnChain({
+          toAddress: user.walletAddress,
+          amount: requestedTokens,
+          type: 'PRODUCTION',
+          ref: req.id,
+        })
+        if (onchain.success) {
+          txHash = onchain.txHash
+          userTokensOnChain = onchain.userTokens ?? requestedTokens
+        }
+      }
+    }
+
     await credit(
       wallet.id,
-      requestedTokens,
+      userTokensOnChain,
       'MINT',
-      `Emissão de ${requestedTokens} FARMCOINS — lastro: ${params.declaredProduction} ${params.productionUnit ?? 'sacas'} de ${params.culture}`,
+      `Emissão de ${userTokensOnChain} FARMCOINS — lastro: ${params.declaredProduction} ${params.productionUnit ?? 'sacas'} de ${params.culture}${txHash ? ` | tx: ${txHash}` : ''}`,
       req.id,
     )
   }
 
-  return { request: req, requestedTokens, autoApproved: req.status === 'APPROVED' }
+  return { request: req, requestedTokens: userTokensOnChain, autoApproved: req.status === 'APPROVED', txHash }
 }
 
 // ── Transferência P2P entre produtores ────────────────────────

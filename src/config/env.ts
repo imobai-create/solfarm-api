@@ -18,6 +18,12 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 
+  // Blockchain — Polygon / FARMCOIN
+  PLATFORM_PRIVATE_KEY: z.string().optional(),
+  TREASURY_WALLET: z.string().optional(),
+  FARMCOIN_CONTRACT_ADDRESS: z.string().optional(),
+  POLYGON_RPC_URL: z.string().default('https://polygon-rpc.com'),
+
   // Asaas — Pagamentos
   ASAAS_API_KEY: z.string().optional(),
   ASAAS_SANDBOX: z.string().default('false'),

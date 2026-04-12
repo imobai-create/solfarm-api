@@ -3,6 +3,7 @@ import {
   getWallet, requestTokenEmission, transferTokens,
   registerEnergyCredit, getTransactions, getLeaderboard,
 } from './farmcoin.service'
+import { getContractInfo } from './blockchain.service'
 
 export async function farmcoinRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRequest', fastify.authenticate)
@@ -68,5 +69,11 @@ export async function farmcoinRoutes(fastify: FastifyInstance) {
   fastify.get('/leaderboard', async (_req, reply) => {
     const data = await getLeaderboard()
     return reply.send({ leaderboard: data })
+  })
+
+  // GET /farmcoin/contract — info do contrato on-chain (Polygon)
+  fastify.get('/contract', async (_req, reply) => {
+    const info = await getContractInfo()
+    return reply.send(info)
   })
 }
