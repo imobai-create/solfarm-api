@@ -18,6 +18,7 @@ import { scanRoutes } from './modules/scan/scan.routes'
 // Instância do Fastify
 // ─────────────────────────────────────
 const app = Fastify({
+  bodyLimit: 15 * 1024 * 1024, // 15MB para suportar imagens base64
   logger: {
     transport:
       env.NODE_ENV === 'development'
