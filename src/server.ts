@@ -16,6 +16,9 @@ import { scanRoutes } from './modules/scan/scan.routes'
 import { receitaRoutes } from './modules/receita/receita.routes'
 import { adminRoutes } from './modules/admin/admin.routes'
 import { farmcoinRoutes } from './modules/farmcoin/farmcoin.routes'
+import { marketplaceRoutes } from './modules/marketplace/marketplace.routes'
+import { communityRoutes } from './modules/community/community.routes'
+import { contactRoutes } from './modules/contact/contact.routes'
 
 // ─────────────────────────────────────
 // Instância do Fastify
@@ -138,6 +141,9 @@ async function registerRoutes() {
   await app.register(receitaRoutes, { prefix: '/receita' })
   await app.register(adminRoutes, { prefix: '/admin' })
   await app.register(farmcoinRoutes, { prefix: '/farmcoin' })
+  await app.register(marketplaceRoutes, { prefix: '/marketplace' })
+  await app.register(communityRoutes, { prefix: '/community' })
+  await app.register(contactRoutes, { prefix: '/contact' })
 
   // 404 handler
   app.setNotFoundHandler((request, reply) => {
