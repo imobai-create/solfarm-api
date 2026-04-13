@@ -98,4 +98,47 @@ export async function authRoutes(fastify: FastifyInstance) {
       throw err
     }
   })
+
+  // PATCH /auth/me — atualiza perfil básico
+  fastify.patch('/me', {
+    onRequest: [fastify.authenticate],
+  }, async (request: any, reply) => {
+    const { name, phone, state, city } = request.body as any
+    const { prisma } = await import('../../config/database')
+    const user = await prisma.user.update({
+      where: { id: request.user.sub },
+      data: { ...(name && { name }), ...(phone && { phone }), ...(state && { state }), ...(city && { city }) },
+      select: { id: true, name: true, email: true, phone: true, state: true, city: true, plan: true, role: true },
+    })
+    return reply.send({ user })
+  })
+
+  // PATCH /auth/wallet — registra carteira Polygon do produtor
+  fastify.patch('/wallet', {
+    onRequest: [fastify.authenticate],
+  }, async (request: any, reply) => {
+    const { walletAddress } = request.body as any
+
+    // Valida formato de endereço Ethereum/Polygon
+    if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return reply.status(422).send({
+        error: 'Endereço de carteira inválido. Deve ser um endereço Polygon válido (0x + 40 caracteres hex).',
+      })
+    }
+
+    const { prisma } = await import('../../config/database')
+    try {
+      const user = await prisma.user.update({
+        where: { id: request.user.sub },
+        data: { walletAddress },
+        select: { id: true, name: true, walletAddress: true },
+      })
+      return reply.send({ message: 'Carteira registrada com sucesso!', user })
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        return reply.status(409).send({ error: 'Este endereço de carteira já está cadastrado em outra conta.' })
+      }
+      throw err
+    }
+  })
 }
