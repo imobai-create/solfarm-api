@@ -47,7 +47,7 @@ async function registerPlugins() {
   // CORS
   await app.register(cors, {
     origin: env.NODE_ENV === 'production'
-      ? ['https://solfarm.com.br', 'https://app.solfarm.com.br', 'https://solfarm-web.vercel.app', /\.vercel\.app$/]
+      ? ['https://solfarm.com.br', 'https://www.solfarm.com.br', 'https://app.solfarm.com.br', 'https://solfarm-web.vercel.app', /\.vercel\.app$/]
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
