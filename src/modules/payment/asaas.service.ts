@@ -182,7 +182,7 @@ export async function createCardPayment(data: {
 export async function createSubscription(data: {
   customerId: string
   plano: keyof typeof PLANOS
-  billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD'
+  billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'UNDEFINED'
   card?: any
   holderInfo?: any
 }) {

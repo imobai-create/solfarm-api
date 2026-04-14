@@ -46,13 +46,18 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     }
   })
 
-  // POST /payments/checkout — inicia checkout (PIX ou Boleto)
+  // POST /payments/checkout — inicia checkout (PIX, Boleto ou Cartão)
+  // Para cartão: o Asaas gera um link seguro (PCI compliant) — dados do cartão
+  // NUNCA passam pelo nosso servidor
   fastify.post('/checkout', async (request, reply) => {
     const body = z.object({
       plan: z.enum(['CAMPO', 'FAZENDA']),
-      billingType: z.enum(['PIX', 'BOLETO']).default('PIX'),
+      // UNDEFINED = link que aceita qualquer método (PIX + Cartão + Boleto)
+      billingType: z.enum(['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED']).default('UNDEFINED'),
       cpfCnpj: z.string().optional(),
       phone: z.string().optional(),
+      // Se true, cria assinatura recorrente (recomendado para planos)
+      recurrent: z.boolean().default(true),
     }).safeParse(request.body)
 
     if (!body.success) {
@@ -63,53 +68,90 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     if (!user) return reply.status(404).send({ error: 'Usuário não encontrado' })
 
     try {
-      // Cria ou busca cliente no Asaas
       const customer = await getOrCreateCustomer({
         name: user.name,
         email: user.email,
         cpfCnpj: body.data.cpfCnpj,
-        phone: body.data.phone ?? user.phone ?? undefined,
+        phone: body.data.phone ?? (user as any).phone ?? undefined,
       })
 
-      // Salva asaasCustomerId no usuário
       await prisma.user.update({
         where: { id: user.id },
         data: { asaasCustomerId: customer.id } as any,
-      }).catch(() => {}) // ignora se coluna não existir ainda
+      }).catch(() => {})
 
       let payment: any
-      if (body.data.billingType === 'PIX') {
-        payment = await createPixPayment({
+      const billing = body.data.billingType
+
+      if (body.data.recurrent) {
+        // ── Assinatura recorrente (débito automático todo mês) ────
+        payment = await createSubscription({
           customerId: customer.id,
           plano: body.data.plan,
+          billingType: billing === 'UNDEFINED' ? 'UNDEFINED' : billing as any,
         })
-        // Gera QR Code PIX
+      } else if (billing === 'PIX') {
+        // ── PIX avulso ────────────────────────────────────────────
+        payment = await createPixPayment({ customerId: customer.id, plano: body.data.plan })
         const qr = await getPixQrCode(payment.id)
         payment.pixQrCode = qr
+      } else if (billing === 'BOLETO') {
+        // ── Boleto avulso ─────────────────────────────────────────
+        payment = await createBoletoPayment({ customerId: customer.id, plano: body.data.plan })
       } else {
-        payment = await createBoletoPayment({
-          customerId: customer.id,
-          plano: body.data.plan,
-        })
+        // ── Cartão ou link universal (CREDIT_CARD / UNDEFINED) ────
+        // Cria cobrança avulsa — Asaas retorna invoiceUrl com página
+        // segura onde o cliente digita o cartão diretamente no Asaas
+        payment = await createPixPayment({ customerId: customer.id, plano: body.data.plan })
+        // Sobrescreve o billingType para o correto
+        payment.billingType = billing
       }
 
       return reply.status(201).send({
         message: 'Cobrança gerada com sucesso',
         payment: {
           id: payment.id,
-          status: payment.status,
-          value: payment.value,
-          dueDate: payment.dueDate,
-          billingType: body.data.billingType,
-          invoiceUrl: payment.invoiceUrl,
-          bankSlipUrl: payment.bankSlipUrl,
+          status: payment.status ?? 'PENDING',
+          value: payment.value ?? PLANOS[body.data.plan].preco,
+          dueDate: payment.dueDate ?? payment.nextDueDate,
+          billingType: billing,
+          recurrent: body.data.recurrent,
+          // invoiceUrl = página segura do Asaas (aceita PIX + cartão + boleto)
+          invoiceUrl: payment.invoiceUrl ?? null,
+          bankSlipUrl: payment.bankSlipUrl ?? null,
           pixQrCode: payment.pixQrCode ?? null,
         },
         plan: PLANOS[body.data.plan],
+        // Instrução para o frontend
+        action: payment.invoiceUrl
+          ? 'redirect' // redireciona para página de pagamento do Asaas
+          : billing === 'PIX'
+          ? 'show_qrcode' // exibe QR Code PIX
+          : 'show_boleto', // exibe boleto
       })
     } catch (err: any) {
       const msg = err?.response?.data?.errors?.[0]?.description ?? err.message ?? 'Erro ao processar pagamento'
       return reply.status(400).send({ error: msg })
+    }
+  })
+
+  // POST /payments/cancel — cancela assinatura
+  fastify.post('/cancel', async (request, reply) => {
+    const body = z.object({
+      subscriptionId: z.string(),
+    }).safeParse(request.body)
+
+    if (!body.success) return reply.status(422).send({ error: 'Dados inválidos' })
+
+    try {
+      await cancelSubscription(body.data.subscriptionId)
+      await prisma.user.update({
+        where: { id: request.user.sub },
+        data: { plan: 'FREE' } as any,
+      }).catch(() => {})
+      return reply.send({ message: 'Assinatura cancelada. Plano revertido para Grátis.' })
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message })
     }
   })
 
