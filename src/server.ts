@@ -123,27 +123,7 @@ async function registerDecorators() {
 // ─────────────────────────────────────
 async function registerRoutes() {
   // Health check
-  // Endpoint temporário de limpeza — remover após uso
-  app.delete('/admin/cleanup-test-data', async (request, reply) => {
-    const auth = request.headers['x-admin-key']
-    if (auth !== 'solfarm_cleanup_2026') return reply.status(401).send({ error: 'Unauthorized' })
-    const { prisma } = await import('./config/database')
-    const orderItems = await prisma.orderItem.deleteMany({})
-    const orders     = await prisma.order.deleteMany({})
-    const products   = await prisma.product.deleteMany({})
-    const posts      = await prisma.post.deleteMany({})
-    return {
-      deleted: {
-        orderItems: orderItems.count,
-        orders: orders.count,
-        products: products.count,
-        posts: posts.count,
-      },
-      message: 'Dados de teste removidos com sucesso!',
-    }
-  })
-
-  app.get('/health', async () => ({
+app.get('/health', async () => ({
     status: 'ok',
     app: 'SolFarm API',
     version: '1.0.0',
