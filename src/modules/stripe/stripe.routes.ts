@@ -55,7 +55,7 @@ export async function stripeRoutes(fastify: FastifyInstance) {
     if (!body.success) return reply.status(422).send({ error: 'Dados inválidos' })
 
     if (!env.STRIPE_SECRET_KEY) {
-      return reply.status(503).send({ error: 'Pagamento internacional não configurado ainda. Use PIX ou boleto.' })
+      return reply.status(503).send({ error: 'International payments not available yet. Please use PIX or bank slip.' })
     }
 
     const user = await prisma.user.findUnique({ where: { id: request.user.sub } })
