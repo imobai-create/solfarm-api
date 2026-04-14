@@ -19,6 +19,7 @@ import { farmcoinRoutes } from './modules/farmcoin/farmcoin.routes'
 import { marketplaceRoutes } from './modules/marketplace/marketplace.routes'
 import { communityRoutes } from './modules/community/community.routes'
 import { contactRoutes } from './modules/contact/contact.routes'
+import { stripeRoutes, stripeWebhookRoutes } from './modules/stripe/stripe.routes'
 
 // ─────────────────────────────────────
 // Instância do Fastify
@@ -144,6 +145,8 @@ async function registerRoutes() {
   await app.register(marketplaceRoutes, { prefix: '/marketplace' })
   await app.register(communityRoutes, { prefix: '/community' })
   await app.register(contactRoutes, { prefix: '/contact' })
+  await app.register(stripeRoutes, { prefix: '/stripe' })
+  await app.register(stripeWebhookRoutes)
 
   // 404 handler
   app.setNotFoundHandler((request, reply) => {

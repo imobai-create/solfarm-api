@@ -24,10 +24,16 @@ const envSchema = z.object({
   FARMCOIN_CONTRACT_ADDRESS: z.string().optional(),
   POLYGON_RPC_URL: z.string().default('https://polygon-bor-rpc.publicnode.com'),
 
-  // Asaas — Pagamentos
+  // Asaas — Pagamentos Brasil
   ASAAS_API_KEY: z.string().optional(),
   ASAAS_SANDBOX: z.string().default('false'),
   ASAAS_WEBHOOK_TOKEN: z.string().optional(),
+
+  // Stripe — Pagamentos Internacionais
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_CAMPO: z.string().optional(),   // price_xxx do plano Campo
+  STRIPE_PRICE_FAZENDA: z.string().optional(), // price_xxx do plano Fazenda
 
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   RATE_LIMIT_WINDOW: z.coerce.number().default(60000),
