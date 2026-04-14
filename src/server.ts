@@ -129,6 +129,12 @@ async function registerRoutes() {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV,
+    stripe: {
+      secret_key_set: !!env.STRIPE_SECRET_KEY,
+      webhook_secret_set: !!env.STRIPE_WEBHOOK_SECRET,
+      price_campo_set: !!env.STRIPE_PRICE_CAMPO,
+      price_fazenda_set: !!env.STRIPE_PRICE_FAZENDA,
+    },
   }))
 
   // Módulos
