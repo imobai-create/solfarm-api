@@ -122,6 +122,22 @@ async function registerDecorators() {
 // Rotas
 // ─────────────────────────────────────
 async function registerRoutes() {
+  // Diagnóstico temporário Asaas
+  app.get('/admin/asaas-test', async (request, reply) => {
+    if (request.headers['x-admin-key'] !== 'solfarm_cleanup_2026') return reply.status(401).send({ error: 'Unauthorized' })
+    const axios = (await import('axios')).default
+    const baseUrl = env.ASAAS_SANDBOX === 'true' ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/api/v3'
+    try {
+      const res = await axios.get(`${baseUrl}/customers?limit=1`, {
+        headers: { 'access_token': env.ASAAS_API_KEY ?? '', 'Content-Type': 'application/json' },
+        timeout: 10000,
+      })
+      return { ok: true, sandbox: env.ASAAS_SANDBOX, baseUrl, status: res.status, totalCustomers: res.data?.totalCount }
+    } catch (e: any) {
+      return { ok: false, sandbox: env.ASAAS_SANDBOX, baseUrl, status: e.response?.status, error: e.response?.data, message: e.message }
+    }
+  })
+
   // Health check
 app.get('/health', async () => ({
     status: 'ok',
