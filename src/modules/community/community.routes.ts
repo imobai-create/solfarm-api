@@ -8,7 +8,7 @@ export async function communityRoutes(fastify: FastifyInstance) {
     const { category, state, page = '1', limit = '20' } = req.query as any
     const skip = (Number(page) - 1) * Number(limit)
 
-    const where: any = {}
+    const where: any = { isActive: true }
     if (category && category !== 'TODOS') where.category = category
     if (state) where.state = state
 
@@ -64,19 +64,33 @@ export async function communityRoutes(fastify: FastifyInstance) {
     return reply.status(201).send(post)
   })
 
-  // ─── POST /community/posts/:id/like ─── curtir post
+  // ─── POST /community/posts/:id/like ─── curtir/descurtir post (toggle)
   fastify.post('/posts/:id/like', { preHandler: [fastify.authenticate] }, async (req, reply) => {
+    const userId = (req.user as any).sub
     const { id } = req.params as { id: string }
 
     const post = await prisma.post.findUnique({ where: { id } })
     if (!post) return reply.status(404).send({ message: 'Post não encontrado' })
 
-    const updated = await prisma.post.update({
-      where: { id },
-      data: { likes: { increment: 1 } },
+    const existing = await prisma.postLike.findUnique({
+      where: { userId_postId: { userId, postId: id } },
     })
 
-    return reply.send({ likes: updated.likes })
+    if (existing) {
+      // Descurtir
+      const [, updated] = await prisma.$transaction([
+        prisma.postLike.delete({ where: { userId_postId: { userId, postId: id } } }),
+        prisma.post.update({ where: { id }, data: { likes: { decrement: 1 } } }),
+      ])
+      return reply.send({ liked: false, likes: Math.max(0, updated.likes) })
+    } else {
+      // Curtir
+      const [, updated] = await prisma.$transaction([
+        prisma.postLike.create({ data: { userId, postId: id } }),
+        prisma.post.update({ where: { id }, data: { likes: { increment: 1 } } }),
+      ])
+      return reply.send({ liked: true, likes: updated.likes })
+    }
   })
 
   // ─── DELETE /community/posts/:id ─── deletar próprio post
@@ -85,10 +99,10 @@ export async function communityRoutes(fastify: FastifyInstance) {
     const { id } = req.params as { id: string }
 
     const post = await prisma.post.findUnique({ where: { id } })
-    if (!post) return reply.status(404).send({ message: 'Post não encontrado' })
+    if (!post || !post.isActive) return reply.status(404).send({ message: 'Post não encontrado' })
     if (post.userId !== userId) return reply.status(403).send({ message: 'Sem permissão' })
 
-    await prisma.post.delete({ where: { id } })
+    await prisma.post.update({ where: { id }, data: { isActive: false } })
     return reply.status(204).send()
   })
 

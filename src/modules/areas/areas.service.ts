@@ -4,6 +4,12 @@ import type { CreateAreaInput, UpdateAreaInput, ListAreasQuery } from './areas.s
 import type { Polygon } from 'geojson'
 import { calculateGeoData } from '../../shared/utils/geo.utils'
 
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback
+  try { return JSON.parse(value) as T }
+  catch { return fallback }
+}
+
 export class AreasService {
 
   // ─────────────────────────────────────
@@ -78,8 +84,8 @@ export class AreasService {
 
     return {
       ...area,
-      polygon: JSON.parse(area.polygon) as Polygon,
-      bbox: area.bbox ? JSON.parse(area.bbox) : null,
+      polygon: safeJsonParse<Polygon>(area.polygon, {} as Polygon),
+      bbox: safeJsonParse(area.bbox, null),
     }
   }
 
@@ -196,20 +202,17 @@ export class AreasService {
     if (!area) throw new NotFoundError('Área')
     if (area.userId !== userId) throw new ForbiddenError()
 
-    // Parse dos JSONs
     const diagnosticsFormatted = area.diagnostics.map(d => ({
       ...d,
-      problems: d.problems ? JSON.parse(d.problems) : [],
-      recommendations: d.recommendations ? JSON.parse(d.recommendations) : [],
-      recommendedCultures: d.recommendedCultures
-        ? JSON.parse(d.recommendedCultures)
-        : [],
+      problems: safeJsonParse<unknown[]>(d.problems, []),
+      recommendations: safeJsonParse<unknown[]>(d.recommendations, []),
+      recommendedCultures: safeJsonParse<unknown[]>(d.recommendedCultures, []),
     }))
 
     return {
       ...area,
-      polygon: JSON.parse(area.polygon) as Polygon,
-      bbox: area.bbox ? JSON.parse(area.bbox) : null,
+      polygon: safeJsonParse<Polygon>(area.polygon, {} as Polygon),
+      bbox: safeJsonParse(area.bbox, null),
       diagnostics: diagnosticsFormatted,
     }
   }
@@ -237,7 +240,7 @@ export class AreasService {
 
     return {
       ...area,
-      polygon: JSON.parse(area.polygon) as Polygon,
+      polygon: safeJsonParse<Polygon>(area.polygon, {} as Polygon),
     }
   }
 

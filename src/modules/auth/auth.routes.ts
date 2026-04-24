@@ -6,6 +6,7 @@ import {
   refreshTokenSchema,
 } from './auth.schemas'
 import { AppError } from '../../shared/errors/AppError'
+import { prisma } from '../../config/database'
 
 export async function authRoutes(fastify: FastifyInstance) {
   const authService = new AuthService(fastify)
@@ -104,13 +105,27 @@ export async function authRoutes(fastify: FastifyInstance) {
     onRequest: [fastify.authenticate],
   }, async (request: any, reply) => {
     const { name, phone, state, city } = request.body as any
-    const { prisma } = await import('../../config/database')
     const user = await prisma.user.update({
       where: { id: request.user.sub },
       data: { ...(name && { name }), ...(phone && { phone }), ...(state && { state }), ...(city && { city }) },
       select: { id: true, name: true, email: true, phone: true, state: true, city: true, plan: true, role: true },
     })
     return reply.send({ user })
+  })
+
+  // DELETE /auth/me — exclui conta permanentemente (exigido pela Apple App Store + LGPD)
+  fastify.delete('/me', {
+    onRequest: [fastify.authenticate],
+  }, async (request, reply) => {
+    try {
+      const result = await authService.deleteAccount(request.user.sub)
+      return reply.status(200).send(result)
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.status(err.statusCode).send({ error: err.message, code: err.code })
+      }
+      throw err
+    }
   })
 
   // PATCH /auth/wallet — registra carteira Polygon do produtor
@@ -126,7 +141,6 @@ export async function authRoutes(fastify: FastifyInstance) {
       })
     }
 
-    const { prisma } = await import('../../config/database')
     try {
       const user = await prisma.user.update({
         where: { id: request.user.sub },

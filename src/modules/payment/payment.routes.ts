@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/AppError'
+import { env } from '../../config/env'
 import {
   PLANOS, getOrCreateCustomer, createPixPayment,
   createBoletoPayment, createSubscription, cancelSubscription,
@@ -179,6 +180,14 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 export async function paymentWebhookRoutes(fastify: FastifyInstance) {
 
   fastify.post('/webhooks/asaas', async (request, reply) => {
+    // Valida token do webhook para rejeitar requisições forjadas
+    if (env.ASAAS_WEBHOOK_TOKEN) {
+      const token = (request.headers['asaas-access-token'] ?? request.headers['x-webhook-token']) as string | undefined
+      if (token !== env.ASAAS_WEBHOOK_TOKEN) {
+        return reply.status(401).send({ error: 'Token de webhook inválido' })
+      }
+    }
+
     const body = request.body as any
 
     // Evento de pagamento confirmado

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { paginationSchema, brazilianStateSchema } from '../../shared/schemas/common'
 
 // Validação de polígono GeoJSON
 const coordinateSchema = z.tuple([
@@ -23,7 +24,7 @@ export const createAreaSchema = z.object({
   ]).optional(),
   soilType: z.string().max(100).optional(),
   polygon: polygonSchema,
-  state: z.string().length(2).optional(),
+  state: brazilianStateSchema,
   city: z.string().max(100).optional(),
   biome: z.enum([
     'CERRADO', 'AMAZONIA', 'MATA_ATLANTICA', 'CAATINGA', 'PAMPA', 'PANTANAL',
@@ -32,11 +33,9 @@ export const createAreaSchema = z.object({
 
 export const updateAreaSchema = createAreaSchema.partial().omit({ polygon: true })
 
-export const listAreasQuerySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(50).default(10),
+export const listAreasQuerySchema = paginationSchema.extend({
   culture: z.string().optional(),
-  state: z.string().optional(),
+  state: brazilianStateSchema,
   biome: z.string().optional(),
 })
 

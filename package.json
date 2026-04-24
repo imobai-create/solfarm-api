@@ -14,7 +14,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "setup": "npm run docker:up && sleep 3 && npm run db:push && npm run db:seed"
+    "setup": "npm run docker:up && sleep 3 && npm run db:push && npm run db:seed",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
@@ -43,7 +46,9 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/geojson": "^7946.0.14",
     "@types/node": "^20.11.30",
+    "@vitest/coverage-v8": "^4.1.5",
     "prisma": "^5.10.2",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "vitest": "^4.1.5"
   }
 }

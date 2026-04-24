@@ -160,7 +160,10 @@ export async function transferTokens(fromUserId: string, toUserId: string, amoun
   const desc = description ?? `Transferência de ${amount} FARMCOINS`
 
   await prisma.$transaction(async (tx) => {
-    const from = await tx.wallet.findUniqueOrThrow({ where: { id: fromWallet.id } })
+    const [from, to] = await Promise.all([
+      tx.wallet.findUniqueOrThrow({ where: { id: fromWallet.id } }),
+      tx.wallet.findUniqueOrThrow({ where: { id: toWallet.id } }),
+    ])
 
     await tx.wallet.update({
       where: { id: fromWallet.id },
@@ -190,8 +193,8 @@ export async function transferTokens(fromUserId: string, toUserId: string, amoun
         amount,
         description: `${desc} ← recebido`,
         status: 'CONFIRMED',
-        balanceBefore: from.balance,   // simplificado
-        balanceAfter: from.balance,
+        balanceBefore: to.balance,
+        balanceAfter: to.balance + amount,
       },
     })
   })
