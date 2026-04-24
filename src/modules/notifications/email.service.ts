@@ -146,6 +146,54 @@ export async function sendWelcome(params: { toEmail: string; toName: string }) {
   })
 }
 
+// ── Email: confirmação de exclusão de conta ───────────────────
+export async function sendAccountDeleted(params: { toEmail: string; toName: string }) {
+  const resend = getResend()
+  if (!resend) return
+
+  await resend.emails.send({
+    from: FROM,
+    to: params.toEmail,
+    subject: 'Sua conta SolFarm foi excluída',
+    html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f0ece4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <div style="max-width:600px;margin:0 auto;padding:24px">
+    <div style="background:linear-gradient(135deg,#1c1917,#44403c);border-radius:16px;padding:32px;text-align:center;margin-bottom:20px">
+      <div style="font-size:48px">🗑️</div>
+      <h1 style="color:#fff;margin:12px 0 0;font-size:22px;font-weight:800">Conta Excluída</h1>
+      <p style="color:rgba(255,255,255,0.7);margin:8px 0 0">Confirmação de exclusão de dados</p>
+    </div>
+
+    <div style="background:#fff;border-radius:16px;padding:28px;margin-bottom:16px">
+      <p style="color:#44403c;font-size:16px">Olá, <strong>${params.toName.split(' ')[0]}</strong>,</p>
+      <p style="color:#78716c;line-height:1.6">
+        Confirmamos que sua conta no <strong>SolFarm</strong> foi <strong>permanentemente excluída</strong>.
+        Todos os seus dados pessoais foram removidos dos nossos servidores, em conformidade com a
+        <strong>LGPD (Lei Geral de Proteção de Dados)</strong>.
+      </p>
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;margin:20px 0">
+        <p style="color:#991b1b;margin:0;font-size:14px;line-height:1.5">
+          <strong>O que foi removido:</strong> perfil, áreas cadastradas, diagnósticos,
+          histórico de monitoramento, carteira FarmCoin e publicações na comunidade.
+        </p>
+      </div>
+      <p style="color:#78716c;font-size:14px;line-height:1.6">
+        Se você não solicitou essa exclusão ou acredita que foi um engano, entre em contato
+        imediatamente pelo e-mail <a href="mailto:contato@solfarm.com.br" style="color:#16a34a">contato@solfarm.com.br</a>.
+      </p>
+    </div>
+
+    <p style="text-align:center;color:#a8a29e;font-size:12px">
+      SolFarm · <a href="https://solfarm.com.br" style="color:#16a34a">solfarm.com.br</a>
+    </p>
+  </div>
+</body>
+</html>`,
+  })
+}
+
 // ── Email: alerta de área crítica ─────────────────────────────
 export async function sendCriticalAlert(params: {
   toEmail: string

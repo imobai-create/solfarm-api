@@ -113,6 +113,21 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ user })
   })
 
+  // DELETE /auth/me — exclui conta permanentemente (exigido pela Apple App Store + LGPD)
+  fastify.delete('/me', {
+    onRequest: [fastify.authenticate],
+  }, async (request, reply) => {
+    try {
+      const result = await authService.deleteAccount(request.user.sub)
+      return reply.status(200).send(result)
+    } catch (err) {
+      if (err instanceof AppError) {
+        return reply.status(err.statusCode).send({ error: err.message, code: err.code })
+      }
+      throw err
+    }
+  })
+
   // PATCH /auth/wallet — registra carteira Polygon do produtor
   fastify.patch('/wallet', {
     onRequest: [fastify.authenticate],
