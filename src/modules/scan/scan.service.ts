@@ -14,7 +14,7 @@ const BIOMA_POR_ESTADO: Record<string, string> = {
   RJ: 'Mata Atlântica', ES: 'Mata Atlântica', BA: 'Mata Atlântica / Caatinga / Cerrado',
   SE: 'Mata Atlântica / Caatinga', AL: 'Caatinga / Mata Atlântica',
   PE: 'Caatinga / Mata Atlântica', PB: 'Caatinga', RN: 'Caatinga',
-  CE: 'Caatinga', PI: 'Caatinga / Cerrado', PA2: 'Caatinga',
+  CE: 'Caatinga', PI: 'Caatinga / Cerrado',
 }
 
 // ── Reverse geocode via Nominatim (OpenStreetMap — gratuito) ──
@@ -144,9 +144,12 @@ Forneça uma análise estruturada em JSON com EXATAMENTE este formato (sem markd
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  // Remove possíveis blocos markdown
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  return JSON.parse(clean)
+  try {
+    return JSON.parse(clean)
+  } catch {
+    throw new Error('Falha ao interpretar resposta da análise de imagem')
+  }
 }
 
 // ── Serviço principal ─────────────────────────────────────────
@@ -157,6 +160,14 @@ export async function scanArea(params: {
   longitude?: number
 }) {
   const { imageBase64, mimeType, latitude, longitude } = params
+
+  if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
+    throw new Error('Latitude inválida (deve estar entre -90 e 90)')
+  }
+  if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
+    throw new Error('Longitude inválida (deve estar entre -180 e 180)')
+  }
+
   const hasCoords = latitude != null && longitude != null
 
   // Executa em paralelo o que puder
