@@ -8,7 +8,7 @@ export async function communityRoutes(fastify: FastifyInstance) {
     const { category, state, page = '1', limit = '20' } = req.query as any
     const skip = (Number(page) - 1) * Number(limit)
 
-    const where: any = {}
+    const where: any = { isActive: true }
     if (category && category !== 'TODOS') where.category = category
     if (state) where.state = state
 
@@ -99,10 +99,10 @@ export async function communityRoutes(fastify: FastifyInstance) {
     const { id } = req.params as { id: string }
 
     const post = await prisma.post.findUnique({ where: { id } })
-    if (!post) return reply.status(404).send({ message: 'Post não encontrado' })
+    if (!post || !post.isActive) return reply.status(404).send({ message: 'Post não encontrado' })
     if (post.userId !== userId) return reply.status(403).send({ message: 'Sem permissão' })
 
-    await prisma.post.delete({ where: { id } })
+    await prisma.post.update({ where: { id }, data: { isActive: false } })
     return reply.status(204).send()
   })
 

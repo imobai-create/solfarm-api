@@ -333,6 +333,8 @@ model Post {
   state     String?
   city      String?
 
+  isActive  Boolean    @default(true) @map("is_active")
+
   userId    String     @map("user_id") @db.Uuid
   user      User       @relation(fields: [userId], references: [id])
   postLikes PostLike[]

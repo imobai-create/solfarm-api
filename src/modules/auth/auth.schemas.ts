@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { brazilianStateSchema, cpfCnpjSchema } from '../../shared/schemas/common'
 
 export const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(100),
@@ -8,8 +9,8 @@ export const registerSchema = z.object({
     .regex(/[A-Z]/, 'Senha deve conter pelo menos uma letra maiúscula')
     .regex(/[0-9]/, 'Senha deve conter pelo menos um número'),
   phone: z.string().optional(),
-  cpfCnpj: z.string().optional(),
-  state: z.string().length(2, 'Use a sigla do estado (ex: MT)').optional(),
+  cpfCnpj: cpfCnpjSchema,
+  state: brazilianStateSchema,
   city: z.string().optional(),
   role: z.enum(['PRODUCER', 'SUPPLIER', 'AGRONOMIST']).default('PRODUCER'),
 })
