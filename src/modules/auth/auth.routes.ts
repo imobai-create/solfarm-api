@@ -6,6 +6,7 @@ import {
   refreshTokenSchema,
 } from './auth.schemas'
 import { AppError } from '../../shared/errors/AppError'
+import { prisma } from '../../config/database'
 
 export async function authRoutes(fastify: FastifyInstance) {
   const authService = new AuthService(fastify)
@@ -104,7 +105,6 @@ export async function authRoutes(fastify: FastifyInstance) {
     onRequest: [fastify.authenticate],
   }, async (request: any, reply) => {
     const { name, phone, state, city } = request.body as any
-    const { prisma } = await import('../../config/database')
     const user = await prisma.user.update({
       where: { id: request.user.sub },
       data: { ...(name && { name }), ...(phone && { phone }), ...(state && { state }), ...(city && { city }) },
@@ -126,7 +126,6 @@ export async function authRoutes(fastify: FastifyInstance) {
       })
     }
 
-    const { prisma } = await import('../../config/database')
     try {
       const user = await prisma.user.update({
         where: { id: request.user.sub },

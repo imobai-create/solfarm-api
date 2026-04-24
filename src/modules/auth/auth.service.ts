@@ -6,6 +6,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../shared/errors/AppError'
+import { env } from '../../config/env'
 import { sendWelcome } from '../notifications/email.service'
 import type { RegisterInput, LoginInput } from './auth.schemas'
 import type { FastifyInstance } from 'fastify'
@@ -190,7 +191,7 @@ export class AuthService {
         role: user.role,
         plan: user.plan,
       },
-      { expiresIn: '30d' }
+      { expiresIn: env.JWT_EXPIRES_IN }
     )
 
     const rawToken = crypto.randomBytes(64).toString('hex')

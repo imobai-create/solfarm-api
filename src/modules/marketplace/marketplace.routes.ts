@@ -56,14 +56,24 @@ export async function marketplaceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ message: 'Categoria inválida' })
     }
 
+    const parsedPrice = Number(price)
+    const parsedStock = Number(stock ?? 0)
+
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      return reply.status(400).send({ message: 'Preço deve ser um número maior que zero' })
+    }
+    if (isNaN(parsedStock) || parsedStock < 0) {
+      return reply.status(400).send({ message: 'Estoque não pode ser negativo' })
+    }
+
     const product = await prisma.product.create({
       data: {
         name,
         description,
         category,
-        price: Number(price),
+        price: parsedPrice,
         unit,
-        stock: Number(stock ?? 0),
+        stock: parsedStock,
         brand,
         state,
         city,
@@ -97,24 +107,45 @@ export async function marketplaceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ message: 'Um ou mais produtos não encontrados' })
     }
 
+    // Valida estoque disponível
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId)!
+      if (item.quantity <= 0) {
+        return reply.status(400).send({ message: `Quantidade inválida para o produto "${product.name}"` })
+      }
+      if (product.stock < item.quantity) {
+        return reply.status(400).send({
+          message: `Estoque insuficiente para "${product.name}". Disponível: ${product.stock}, solicitado: ${item.quantity}`,
+        })
+      }
+    }
+
     // Calcula total
     let total = 0
     const orderItems = items.map(item => {
       const product = products.find(p => p.id === item.productId)!
-      const subtotal = product.price * item.quantity
-      total += subtotal
+      total += product.price * item.quantity
       return { productId: item.productId, quantity: item.quantity, price: product.price }
     })
 
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        total,
-        paymentMethod,
-        status: 'PENDING',
-        items: { create: orderItems },
-      },
-      include: { items: { include: { product: true } } },
+    // Cria pedido e decrementa estoque atomicamente
+    const order = await prisma.$transaction(async (tx) => {
+      for (const item of orderItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      }
+      return tx.order.create({
+        data: {
+          userId,
+          total,
+          paymentMethod,
+          status: 'PENDING',
+          items: { create: orderItems },
+        },
+        include: { items: { include: { product: true } } },
+      })
     })
 
     return reply.status(201).send(order)
